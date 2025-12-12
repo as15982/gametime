@@ -133,7 +133,9 @@
         // --- ICONS (Lucide Wrapper) ---
         const Icon = ({ name, size = 24, className }) => {
           useEffect(() => {
-            lucide.createIcons();
+            if (window.lucide) {
+                window.lucide.createIcons();
+            }
           }, [name]);
           return <i data-lucide={name} width={size} height={size} className={className}></i>;
         };
@@ -196,6 +198,16 @@
         };
 
         // --- COMPONENTS ---
+
+        const TopRightHomeButton = ({ onClick }) => (
+            <button 
+                onClick={(e) => { e.stopPropagation(); onClick(); }} 
+                className="absolute top-4 right-4 p-3 bg-slate-800 rounded-full border-2 border-gray-400 hover:border-white hover:bg-slate-700 text-white z-50 transition-all shadow-lg"
+                aria-label="Back to Home"
+            >
+                <HomeIcon size={24} />
+            </button>
+        );
 
         const Card = ({ isFlipped, frontContent, backContent, onClick, className = '' }) => {
           return (
@@ -488,6 +500,7 @@
           if (view === View.GAME_SELECT) {
             return (
               <div className="h-screen w-screen flex flex-col md:flex-row items-center justify-center gap-12 bg-slate-900 p-8">
+                <TopRightHomeButton onClick={goHome} />
                 <div 
                   onClick={() => { setSelectedGame(GameType.A); setView(View.TOPIC_SELECT_A); }}
                   className="bg-slate-800 p-8 rounded-2xl border-4 border-cyan-500 hover:scale-105 transition-transform cursor-pointer text-center z-10"
@@ -516,6 +529,7 @@
                 className="h-screen w-screen flex flex-col items-center justify-center gap-8 bg-slate-900 p-4"
                 {...topicDoubleTap} 
               >
+                <TopRightHomeButton onClick={goHome} />
                 <h2 className="text-3xl font-noto text-white mb-8">
                   {selected ? 'Double Tap to Confirm' : 'Select a Topic'}
                 </h2>
@@ -613,6 +627,7 @@
                 className="h-screen w-screen flex items-center justify-center bg-slate-900 cursor-pointer"
                 onClick={() => setView(View.OFFICIAL_INTRO)}
               >
+                <TopRightHomeButton onClick={goHome} />
                 <div className="text-center animate-pulse">
                   <h1 className="text-6xl font-noto text-white mb-4">正式開始</h1>
                   <p className="text-xl text-gray-400 font-8bit">CLICK TO START</p>
@@ -690,9 +705,7 @@
 
             return (
               <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 gap-8">
-                <button onClick={goHome} className="absolute top-8 right-8 p-4 bg-gray-800 rounded-full hover:bg-gray-700 z-10">
-                   <HomeIcon size={32} />
-                </button>
+                <TopRightHomeButton onClick={goHome} />
                 
                 <h1 className="text-6xl font-8bit text-yellow-400 mb-8">RESULTS</h1>
                 
@@ -719,9 +732,10 @@
           if (view === View.ADMIN) {
             return (
               <div className="min-h-screen w-full bg-slate-900 p-8 overflow-y-auto z-10 relative">
+                <TopRightHomeButton onClick={goHome} />
                 <div className="flex justify-between items-center mb-8">
                    <h1 className="text-4xl font-8bit text-blue-400">ADMIN PANEL</h1>
-                   <button onClick={goHome}><XIcon size={40} /></button>
+                   {/* X button removed, replaced by TopRightHomeButton */}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
