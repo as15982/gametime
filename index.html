@@ -89,6 +89,7 @@
           OFFICIAL_INTRO: 'OFFICIAL_INTRO',
           OFFICIAL_PLAY: 'OFFICIAL_PLAY',
           SCORE: 'SCORE',
+          REVIEW: 'REVIEW', // New View
           ADMIN: 'ADMIN'
         };
 
@@ -125,6 +126,7 @@
             id: 'b1', 
             topic: TopicB.BRAND, 
             imageBase64: PLACEHOLDER_IMAGE, 
+            answer: 'NIKE', // Added Answer
             hint1: '運動用品', 
             hint2: '勾勾' 
           },
@@ -143,6 +145,7 @@
         const XIcon = (props) => <Icon name="x" {...props} />;
         const HomeIcon = (props) => <Icon name="home" {...props} />;
         const TrashIcon = (props) => <Icon name="trash-2" {...props} />;
+        const EyeIcon = (props) => <Icon name="eye" {...props} />;
 
         // --- HOOKS ---
 
@@ -278,9 +281,11 @@
           const [questionsB, setQuestionsB] = useState([]);
           const [playQueue, setPlayQueue] = useState([]);
 
+          // Admin State
           const [newQuestionAText, setNewQuestionAText] = useState('');
           const [newQuestionBTopic, setNewQuestionBTopic] = useState(TopicB.BRAND);
           const [newQuestionBImage, setNewQuestionBImage] = useState('');
+          const [newQuestionBAnswer, setNewQuestionBAnswer] = useState(''); // New State for Answer
           const [newQuestionBHint1, setNewQuestionBHint1] = useState('');
           const [newQuestionBHint2, setNewQuestionBHint2] = useState('');
 
@@ -456,11 +461,12 @@
           };
 
           const addQuestionB = () => {
-            if (!newQuestionBImage || !newQuestionBHint1 || !newQuestionBHint2) return;
+            if (!newQuestionBImage || !newQuestionBAnswer || !newQuestionBHint1 || !newQuestionBHint2) return;
             const newQ = {
               id: Date.now().toString(),
               topic: newQuestionBTopic,
               imageBase64: newQuestionBImage,
+              answer: newQuestionBAnswer, // Save Answer
               hint1: newQuestionBHint1,
               hint2: newQuestionBHint2
             };
@@ -468,6 +474,7 @@
             setQuestionsB(updated);
             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
             setNewQuestionBImage('');
+            setNewQuestionBAnswer('');
             setNewQuestionBHint1('');
             setNewQuestionBHint2('');
           };
@@ -709,14 +716,14 @@
                 
                 <h1 className="text-6xl font-8bit text-yellow-400 mb-8">RESULTS</h1>
                 
-                <div className="bg-slate-800 p-12 rounded-3xl border-4 border-white w-3/4 max-w-2xl z-10">
-                   <div className="flex justify-between items-center mb-6 border-b-2 border-gray-600 pb-4">
+                <div className="bg-slate-800 p-12 rounded-3xl border-4 border-white w-3/4 max-w-2xl z-10 flex flex-col gap-6">
+                   <div className="flex justify-between items-center border-b-2 border-gray-600 pb-4">
                       <span className="text-3xl font-noto text-gray-400">Total Time</span>
                       <span className="text-4xl font-8bit text-white">
                         {displayMinutes}分 {displaySeconds}秒
                       </span>
                    </div>
-                   <div className="flex justify-between items-center mb-6 border-b-2 border-gray-600 pb-4">
+                   <div className="flex justify-between items-center border-b-2 border-gray-600 pb-4">
                       <span className="text-3xl font-noto text-green-400">Correct</span>
                       <span className="text-4xl font-8bit text-green-400">{stats.correctCount}</span>
                    </div>
@@ -724,6 +731,45 @@
                       <span className="text-3xl font-noto text-red-400">Passed</span>
                       <span className="text-4xl font-8bit text-red-400">{stats.passCount}</span>
                    </div>
+                   
+                   <button 
+                      onClick={() => setView(View.REVIEW)}
+                      className="mt-4 bg-yellow-600 hover:bg-yellow-500 text-white font-noto text-2xl py-3 rounded-lg flex items-center justify-center gap-2"
+                   >
+                     <EyeIcon /> 觀看解答
+                   </button>
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.REVIEW) {
+            return (
+              <div className="min-h-screen w-full bg-slate-900 p-8 overflow-y-auto relative">
+                <TopRightHomeButton onClick={goHome} />
+                <h1 className="text-4xl font-8bit text-yellow-400 mb-8 text-center">ANSWER REVIEW</h1>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                  {playQueue.map((q, idx) => (
+                    <div key={idx} className="bg-slate-800 p-4 rounded-xl border-2 border-gray-600 flex flex-col items-center">
+                       {selectedGame === GameType.A ? (
+                         <div className="text-2xl font-noto text-white py-8">{q.text}</div>
+                       ) : (
+                         <>
+                           <img src={q.imageBase64} className="h-48 object-contain mb-4 rounded border border-gray-500" />
+                           <div className="w-full bg-slate-900 p-3 rounded text-center">
+                             <p className="text-green-400 font-noto text-xl font-bold">{q.answer || 'No Answer Set'}</p>
+                           </div>
+                         </>
+                       )}
+                       <div className="mt-2 text-gray-500 font-noto text-sm">Question {idx + 1}</div>
+                    </div>
+                  ))}
+                  {playQueue.length === 0 && (
+                    <div className="col-span-full text-center text-gray-500 text-xl font-noto">
+                      No questions were played.
+                    </div>
+                  )}
                 </div>
               </div>
             );
@@ -735,7 +781,6 @@
                 <TopRightHomeButton onClick={goHome} />
                 <div className="flex justify-between items-center mb-8">
                    <h1 className="text-4xl font-8bit text-blue-400">ADMIN PANEL</h1>
-                   {/* X button removed, replaced by TopRightHomeButton */}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -786,6 +831,15 @@
                       className="w-full mb-4"
                     />
                     {newQuestionBImage && <img src={newQuestionBImage} className="h-20 mb-4 object-contain" />}
+                    
+                    <input 
+                      type="text" 
+                      placeholder="Answer (解答)" 
+                      value={newQuestionBAnswer}
+                      onChange={e => setNewQuestionBAnswer(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-yellow-600 rounded mb-2 text-yellow-300 placeholder-gray-500"
+                    />
+
                     <input 
                       type="text" 
                       placeholder="Hint 1" 
@@ -823,7 +877,7 @@
                    <div className="flex flex-wrap gap-2">
                     {questionsB.map(q => (
                       <div key={q.id} className="bg-gray-700 px-3 py-2 rounded flex items-center gap-2">
-                        <span className="text-sm">{q.topic}: [Image]</span>
+                        <span className="text-sm">{q.topic}: [Image] (Ans: {q.answer || 'N/A'})</span>
                         <button onClick={() => deleteQuestionB(q.id)} className="text-red-400 hover:text-red-300 ml-2">
                           <TrashIcon size={16} />
                         </button>
