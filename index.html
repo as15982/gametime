@@ -89,7 +89,7 @@
           OFFICIAL_INTRO: 'OFFICIAL_INTRO',
           OFFICIAL_PLAY: 'OFFICIAL_PLAY',
           SCORE: 'SCORE',
-          REVIEW: 'REVIEW', // New View
+          REVIEW: 'REVIEW',
           ADMIN: 'ADMIN'
         };
 
@@ -112,6 +112,7 @@
 
         const STORAGE_KEY_A = 'game_questions_a';
         const STORAGE_KEY_B = 'game_questions_b';
+        const STORAGE_KEY_PRACTICE_B = 'game_practice_b';
         const PLACEHOLDER_IMAGE = 'https://picsum.photos/600/600';
 
         const DEFAULT_QUESTIONS_A = [
@@ -126,11 +127,18 @@
             id: 'b1', 
             topic: TopicB.BRAND, 
             imageBase64: PLACEHOLDER_IMAGE, 
-            answer: 'NIKE', // Added Answer
+            answer: 'NIKE', 
             hint1: '運動用品', 
             hint2: '勾勾' 
           },
         ];
+
+        const DEFAULT_PRACTICE_B = {
+            imageBase64: PLACEHOLDER_IMAGE,
+            answer: '範例圖片',
+            hint1: 'Place',
+            hint2: 'Travel'
+        };
 
         // --- ICONS (Lucide Wrapper) ---
         const Icon = ({ name, size = 24, className }) => {
@@ -146,6 +154,7 @@
         const HomeIcon = (props) => <Icon name="home" {...props} />;
         const TrashIcon = (props) => <Icon name="trash-2" {...props} />;
         const EyeIcon = (props) => <Icon name="eye" {...props} />;
+        const SaveIcon = (props) => <Icon name="save" {...props} />;
 
         // --- HOOKS ---
 
@@ -279,15 +288,20 @@
 
           const [questionsA, setQuestionsA] = useState([]);
           const [questionsB, setQuestionsB] = useState([]);
+          const [practiceB, setPracticeB] = useState(DEFAULT_PRACTICE_B);
+
           const [playQueue, setPlayQueue] = useState([]);
 
           // Admin State
           const [newQuestionAText, setNewQuestionAText] = useState('');
           const [newQuestionBTopic, setNewQuestionBTopic] = useState(TopicB.BRAND);
           const [newQuestionBImage, setNewQuestionBImage] = useState('');
-          const [newQuestionBAnswer, setNewQuestionBAnswer] = useState(''); // New State for Answer
+          const [newQuestionBAnswer, setNewQuestionBAnswer] = useState('');
           const [newQuestionBHint1, setNewQuestionBHint1] = useState('');
           const [newQuestionBHint2, setNewQuestionBHint2] = useState('');
+          
+          // Admin Practice B State
+          const [editPracticeB, setEditPracticeB] = useState(DEFAULT_PRACTICE_B);
 
           const timerRef = useRef(null);
 
@@ -295,8 +309,16 @@
           useEffect(() => {
             const storedA = localStorage.getItem(STORAGE_KEY_A);
             const storedB = localStorage.getItem(STORAGE_KEY_B);
+            const storedPracticeB = localStorage.getItem(STORAGE_KEY_PRACTICE_B);
+
             setQuestionsA(storedA ? JSON.parse(storedA) : DEFAULT_QUESTIONS_A);
             setQuestionsB(storedB ? JSON.parse(storedB) : DEFAULT_QUESTIONS_B);
+            
+            if (storedPracticeB) {
+                const parsedPB = JSON.parse(storedPracticeB);
+                setPracticeB(parsedPB);
+                setEditPracticeB(parsedPB);
+            }
           }, []);
 
           // --- VIEW: PREPARING ANIMATION ---
@@ -439,6 +461,17 @@
               reader.readAsDataURL(file);
             }
           };
+          
+          const handlePracticeImageUpload = (e) => {
+             const file = e.target.files?.[0];
+             if (file) {
+               const reader = new FileReader();
+               reader.onloadend = () => {
+                 setEditPracticeB(prev => ({ ...prev, imageBase64: reader.result }));
+               };
+               reader.readAsDataURL(file);
+             }
+          };
 
           const addQuestionA = () => {
             if (!newQuestionAText || !selectedTopicA) return;
@@ -466,7 +499,7 @@
               id: Date.now().toString(),
               topic: newQuestionBTopic,
               imageBase64: newQuestionBImage,
-              answer: newQuestionBAnswer, // Save Answer
+              answer: newQuestionBAnswer,
               hint1: newQuestionBHint1,
               hint2: newQuestionBHint2
             };
@@ -483,6 +516,20 @@
             const updated = questionsB.filter(q => q.id !== id);
             setQuestionsB(updated);
             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
+          };
+          
+          const savePracticeB = () => {
+             setPracticeB(editPracticeB);
+             localStorage.setItem(STORAGE_KEY_PRACTICE_B, JSON.stringify(editPracticeB));
+             alert('Practice Question Saved!');
+          };
+
+          const saveAllData = () => {
+             localStorage.setItem(STORAGE_KEY_A, JSON.stringify(questionsA));
+             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(questionsB));
+             localStorage.setItem(STORAGE_KEY_PRACTICE_B, JSON.stringify(editPracticeB));
+             setPracticeB(editPracticeB);
+             alert('All Data Saved Successfully!');
           };
 
           // --- RENDER ---
@@ -592,7 +639,7 @@
                      <div className="text-center">
                         <h1 className="text-6xl font-noto text-red-500 mb-8 animate-bounce">時間終了</h1>
                         {selectedGame === GameType.B && (
-                          <h2 className="text-4xl font-noto text-white">謎底：範例圖片</h2>
+                          <h2 className="text-4xl font-noto text-white">謎底：{practiceB.answer}</h2>
                         )}
                      </div>
                   ) : (
@@ -603,16 +650,16 @@
                         </div>
                       ) : (
                         <div className="relative w-full h-full flex items-center justify-center">
-                           <img src="https://picsum.photos/800/600" alt="Practice" className="max-w-full max-h-full object-contain border-4 border-white" />
+                           <img src={practiceB.imageBase64} alt="Practice" className="max-w-full max-h-full object-contain border-4 border-white" />
                            
                            {hintStage >= 1 && (
                              <div className="absolute bottom-10 left-10 bg-black/80 p-4 rounded text-2xl font-noto text-yellow-300">
-                               Hint 1: Place
+                               Hint 1: {practiceB.hint1}
                              </div>
                            )}
                            {hintStage >= 2 && (
                              <div className="absolute bottom-10 right-10 bg-black/80 p-4 rounded text-2xl font-noto text-yellow-300">
-                               Hint 2: Travel
+                               Hint 2: {practiceB.hint2}
                              </div>
                            )}
                         </div>
@@ -781,6 +828,48 @@
                 <TopRightHomeButton onClick={goHome} />
                 <div className="flex justify-between items-center mb-8">
                    <h1 className="text-4xl font-8bit text-blue-400">ADMIN PANEL</h1>
+                   <button 
+                     onClick={saveAllData} 
+                     className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-bold flex items-center gap-2"
+                   >
+                     <SaveIcon size={20} /> SAVE ALL DATA
+                   </button>
+                </div>
+
+                {/* Edit Practice B Section */}
+                <div className="bg-slate-800 p-6 rounded-xl border-2 border-green-500 mb-8">
+                    <h2 className="text-2xl font-noto mb-4 text-green-400">Edit Practice Question B (Image)</h2>
+                     <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handlePracticeImageUpload}
+                        className="w-full mb-4"
+                    />
+                    {editPracticeB.imageBase64 && <img src={editPracticeB.imageBase64} className="h-40 mb-4 object-contain border border-gray-600 rounded" />}
+                     <input 
+                        type="text" 
+                        placeholder="Answer (解答)" 
+                        value={editPracticeB.answer}
+                        onChange={e => setEditPracticeB({...editPracticeB, answer: e.target.value})}
+                        className="w-full p-3 bg-slate-900 border border-yellow-600 rounded mb-2 text-yellow-300"
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Hint 1" 
+                        value={editPracticeB.hint1}
+                        onChange={e => setEditPracticeB({...editPracticeB, hint1: e.target.value})}
+                        className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-2"
+                    />
+                    <input 
+                        type="text" 
+                        placeholder="Hint 2" 
+                        value={editPracticeB.hint2}
+                        onChange={e => setEditPracticeB({...editPracticeB, hint2: e.target.value})}
+                        className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4"
+                    />
+                    <button onClick={savePracticeB} className="w-full bg-green-600 p-3 rounded font-bold hover:bg-green-500">
+                        SAVE PRACTICE QUESTION
+                    </button>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
