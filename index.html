@@ -1,20 +1,29 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>Retro Guessing Game</title>
+    
+    <!-- Libraries -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/lucide@latest"></script> <!-- Lucide Icons -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@700&family=Press+Start+2P&display=swap" rel="stylesheet">
+
     <style>
       body {
         background-color: #0f172a; /* slate-900 */
         color: white;
         overflow: hidden;
         touch-action: manipulation;
+        margin: 0;
       }
       /* Custom Font Classes */
       .font-8bit {
@@ -57,23 +66,768 @@
         z-index: 50;
       }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
-  }
-}
-</script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body>
+<body>
     <div id="root"></div>
     <div class="scanlines"></div>
-    <script type="module" src="./index.tsx"></script>
-  <script type="module" src="/index.tsx"></script>
+
+    <script type="text/babel" data-presets="react,typescript">
+        const { useState, useEffect, useRef, useCallback } = React;
+        const { createRoot } = ReactDOM;
+
+        // --- CONSTANTS & TYPES ---
+        
+        const View = {
+          HOME: 'HOME',
+          GAME_SELECT: 'GAME_SELECT',
+          TOPIC_SELECT_A: 'TOPIC_SELECT_A',
+          TOPIC_SELECT_B: 'TOPIC_SELECT_B',
+          PREPARING: 'PREPARING',
+          PRACTICE_INTRO: 'PRACTICE_INTRO',
+          PRACTICE_PLAY: 'PRACTICE_PLAY',
+          OFFICIAL_PRE_START: 'OFFICIAL_PRE_START',
+          OFFICIAL_INTRO: 'OFFICIAL_INTRO',
+          OFFICIAL_PLAY: 'OFFICIAL_PLAY',
+          SCORE: 'SCORE',
+          ADMIN: 'ADMIN'
+        };
+
+        const GameType = {
+          A: 'A', // Silent Shout
+          B: 'B'  // AI Image Guess
+        };
+
+        const TopicA = {
+          DIET: '飲食',
+          LIFE: '生活',
+          BRAND: '品牌'
+        };
+
+        const TopicB = {
+          BRAND: '品牌',
+          DIET: '飲食',
+          MOVIE_CHAR: '電影&角色'
+        };
+
+        const STORAGE_KEY_A = 'game_questions_a';
+        const STORAGE_KEY_B = 'game_questions_b';
+        const PLACEHOLDER_IMAGE = 'https://picsum.photos/600/600';
+
+        const DEFAULT_QUESTIONS_A = [
+          { id: 'a1', topic: TopicA.DIET, text: '珍珠奶茶', timestamp: 1 },
+          { id: 'a2', topic: TopicA.DIET, text: '臭豆腐', timestamp: 2 },
+          { id: 'a3', topic: TopicA.LIFE, text: '捷運', timestamp: 3 },
+          { id: 'a4', topic: TopicA.BRAND, text: 'NIKE', timestamp: 4 },
+        ];
+
+        const DEFAULT_QUESTIONS_B = [
+          { 
+            id: 'b1', 
+            topic: TopicB.BRAND, 
+            imageBase64: PLACEHOLDER_IMAGE, 
+            hint1: '運動用品', 
+            hint2: '勾勾' 
+          },
+        ];
+
+        // --- ICONS (Lucide Wrapper) ---
+        const Icon = ({ name, size = 24, className }) => {
+          useEffect(() => {
+            lucide.createIcons();
+          }, [name]);
+          return <i data-lucide={name} width={size} height={size} className={className}></i>;
+        };
+
+        const XIcon = (props) => <Icon name="x" {...props} />;
+        const HomeIcon = (props) => <Icon name="home" {...props} />;
+        const TrashIcon = (props) => <Icon name="trash-2" {...props} />;
+
+        // --- HOOKS ---
+
+        const useLongPress = ({ onLongPress, ms = 500 }) => {
+          const timerRef = useRef(null);
+
+          const start = useCallback(() => {
+            timerRef.current = setTimeout(() => {
+              onLongPress();
+            }, ms);
+          }, [onLongPress, ms]);
+
+          const stop = useCallback(() => {
+            if (timerRef.current) {
+              clearTimeout(timerRef.current);
+              timerRef.current = null;
+            }
+          }, []);
+
+          return {
+            onMouseDown: start,
+            onMouseUp: stop,
+            onMouseLeave: stop,
+            onTouchStart: start,
+            onTouchEnd: stop,
+          };
+        };
+
+        const useDoubleTap = ({ onDoubleTap, onSingleTap, delay = 300 }) => {
+          const lastTapRef = useRef(0);
+          const timerRef = useRef(null);
+
+          const handleTap = useCallback(() => {
+            const now = Date.now();
+            if (now - lastTapRef.current < delay) {
+              if (timerRef.current) clearTimeout(timerRef.current);
+              onDoubleTap();
+              lastTapRef.current = 0;
+            } else {
+              lastTapRef.current = now;
+              if (onSingleTap) {
+                timerRef.current = setTimeout(() => {
+                  onSingleTap();
+                  lastTapRef.current = 0;
+                }, delay);
+              }
+            }
+          }, [onDoubleTap, onSingleTap, delay]);
+
+          return {
+            onClick: handleTap,
+          };
+        };
+
+        // --- COMPONENTS ---
+
+        const Card = ({ isFlipped, frontContent, backContent, onClick, className = '' }) => {
+          return (
+            <div 
+              className={`relative w-64 h-80 perspective-1000 cursor-pointer ${className}`}
+              onClick={onClick}
+            >
+              <div 
+                className={`w-full h-full relative transform-style-3d transition-transform duration-700 ${isFlipped ? 'rotate-y-180' : ''}`}
+              >
+                {/* Front (Cover) */}
+                <div className="absolute w-full h-full backface-hidden bg-slate-800 border-4 border-indigo-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.5)]">
+                   <div className="text-6xl animate-pulse">?</div>
+                </div>
+
+                {/* Back (Revealed) */}
+                <div className="absolute w-full h-full backface-hidden rotate-y-180 bg-indigo-900 border-4 border-pink-500 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(236,72,153,0.5)]">
+                  <div className="text-3xl font-noto font-bold text-center p-4">
+                    {backContent}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        };
+
+        const CountdownOverlay = ({ onComplete }) => {
+          const [count, setCount] = useState(3);
+
+          useEffect(() => {
+            if (count > 0) {
+              const timer = setTimeout(() => setCount(count - 1), 1000);
+              return () => clearTimeout(timer);
+            } else {
+              onComplete();
+            }
+          }, [count, onComplete]);
+
+          if (count === 0) return null;
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-sm">
+              <div className="text-9xl font-8bit text-yellow-400 animate-bounce">
+                {count}
+              </div>
+            </div>
+          );
+        };
+
+        // --- MAIN APP ---
+
+        const App = () => {
+          // --- STATE ---
+          const [view, setView] = useState(View.HOME);
+          const [selectedGame, setSelectedGame] = useState(null);
+          const [selectedTopicA, setSelectedTopicA] = useState(null);
+          const [selectedTopicB, setSelectedTopicB] = useState(null);
+          
+          const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+          const [practiceTimeLeft, setPracticeTimeLeft] = useState(60);
+          const [gameTimeLeft, setGameTimeLeft] = useState(0); 
+          const [stats, setStats] = useState({ correctCount: 0, passCount: 0, startTime: 0, endTime: 0 });
+          
+          const [hintStage, setHintStage] = useState(0); 
+          const [preparingText, setPreparingText] = useState("Preparing");
+
+          const [questionsA, setQuestionsA] = useState([]);
+          const [questionsB, setQuestionsB] = useState([]);
+          const [playQueue, setPlayQueue] = useState([]);
+
+          const [newQuestionAText, setNewQuestionAText] = useState('');
+          const [newQuestionBTopic, setNewQuestionBTopic] = useState(TopicB.BRAND);
+          const [newQuestionBImage, setNewQuestionBImage] = useState('');
+          const [newQuestionBHint1, setNewQuestionBHint1] = useState('');
+          const [newQuestionBHint2, setNewQuestionBHint2] = useState('');
+
+          const timerRef = useRef(null);
+
+          // --- INITIALIZATION ---
+          useEffect(() => {
+            const storedA = localStorage.getItem(STORAGE_KEY_A);
+            const storedB = localStorage.getItem(STORAGE_KEY_B);
+            setQuestionsA(storedA ? JSON.parse(storedA) : DEFAULT_QUESTIONS_A);
+            setQuestionsB(storedB ? JSON.parse(storedB) : DEFAULT_QUESTIONS_B);
+          }, []);
+
+          // --- VIEW: PREPARING ANIMATION ---
+          useEffect(() => {
+            if (view === View.PREPARING) {
+              const interval = setInterval(() => {
+                setPreparingText(prev => prev.length > 12 ? "Preparing" : prev + ".");
+              }, 500);
+              return () => clearInterval(interval);
+            }
+          }, [view]);
+
+          // --- HELPERS ---
+          const resetGame = () => {
+            setStats({ correctCount: 0, passCount: 0, startTime: 0, endTime: 0 });
+            setCurrentQuestionIndex(0);
+            setHintStage(0);
+            setPlayQueue([]);
+            setPracticeTimeLeft(60);
+            if (timerRef.current) clearInterval(timerRef.current);
+          };
+
+          const goHome = () => {
+            resetGame();
+            setView(View.HOME);
+          };
+
+          const startTimer = (initialTime, setter, onFinish) => {
+            setter(initialTime);
+            if (timerRef.current) clearInterval(timerRef.current);
+            timerRef.current = setInterval(() => {
+              setter(prev => {
+                if (prev <= 1) {
+                  if (timerRef.current) clearInterval(timerRef.current);
+                  onFinish();
+                  return 0;
+                }
+                return prev - 1;
+              });
+            }, 1000);
+          };
+
+          const endGame = () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+            setStats(prev => ({ ...prev, endTime: Date.now() }));
+            setView(View.SCORE);
+          };
+
+          const handleNextQuestion = (isCorrect) => {
+            setStats(prev => ({
+              ...prev,
+              correctCount: isCorrect ? prev.correctCount + 1 : prev.correctCount,
+              passCount: !isCorrect ? prev.passCount + 1 : prev.passCount
+            }));
+
+            setHintStage(0); 
+            
+            if (currentQuestionIndex < playQueue.length - 1) {
+              setCurrentQuestionIndex(prev => prev + 1);
+            } else {
+               endGame();
+            }
+          };
+
+          // --- GESTURES ---
+          const homeLongPress = useLongPress({
+            onLongPress: () => setView(View.ADMIN),
+            ms: 3000
+          });
+
+          const topicDoubleTap = useDoubleTap({
+            onDoubleTap: () => {
+              if (selectedGame === GameType.A && selectedTopicA) {
+                setView(View.PREPARING);
+              } else if (selectedGame === GameType.B && selectedTopicB) {
+                setView(View.PRACTICE_INTRO); 
+              }
+            }
+          });
+
+          const preparingDoubleTap = useDoubleTap({
+            onDoubleTap: () => setView(View.PRACTICE_INTRO)
+          });
+
+          const gameControlHandlers = useDoubleTap({
+            onDoubleTap: () => {
+               if (view === View.PRACTICE_PLAY) {
+                 if (timerRef.current) clearInterval(timerRef.current);
+                 setView(View.OFFICIAL_PRE_START);
+                 return; 
+               }
+
+               if (view === View.OFFICIAL_PLAY) {
+                 if (gameTimeLeft === 0) {
+                   endGame();
+                 } else {
+                   handleNextQuestion(true);
+                 }
+               }
+            },
+            onSingleTap: () => {
+              if ((view === View.PRACTICE_PLAY || view === View.OFFICIAL_PLAY) && selectedGame === GameType.B) {
+                setHintStage(prev => Math.min(prev + 1, 2));
+              }
+            }
+          });
+
+          const gameLongPress = useLongPress({
+            onLongPress: () => {
+              if (view === View.OFFICIAL_PLAY && gameTimeLeft > 0) {
+                handleNextQuestion(false);
+              }
+            },
+            ms: 1000
+          });
+
+          const handleTopicSelectA = (topic) => {
+            setSelectedTopicA(topic);
+            const queue = questionsA
+              .filter(q => q.topic === topic)
+              .sort((a, b) => a.timestamp - b.timestamp);
+            setPlayQueue(queue);
+          };
+
+          const handleTopicSelectB = (topic) => {
+            setSelectedTopicB(topic);
+            const queue = questionsB
+              .filter(q => q.topic === topic)
+              .sort(() => Math.random() - 0.5);
+            setPlayQueue(queue);
+          };
+
+          const handleImageUpload = (e) => {
+            const file = e.target.files?.[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onloadend = () => {
+                setNewQuestionBImage(reader.result);
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+
+          const addQuestionA = () => {
+            if (!newQuestionAText || !selectedTopicA) return;
+            const newQ = {
+              id: Date.now().toString(),
+              topic: selectedTopicA,
+              text: newQuestionAText,
+              timestamp: Date.now()
+            };
+            const updated = [...questionsA, newQ];
+            setQuestionsA(updated);
+            localStorage.setItem(STORAGE_KEY_A, JSON.stringify(updated));
+            setNewQuestionAText('');
+          };
+
+          const deleteQuestionA = (id) => {
+            const updated = questionsA.filter(q => q.id !== id);
+            setQuestionsA(updated);
+            localStorage.setItem(STORAGE_KEY_A, JSON.stringify(updated));
+          };
+
+          const addQuestionB = () => {
+            if (!newQuestionBImage || !newQuestionBHint1 || !newQuestionBHint2) return;
+            const newQ = {
+              id: Date.now().toString(),
+              topic: newQuestionBTopic,
+              imageBase64: newQuestionBImage,
+              hint1: newQuestionBHint1,
+              hint2: newQuestionBHint2
+            };
+            const updated = [...questionsB, newQ];
+            setQuestionsB(updated);
+            localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
+            setNewQuestionBImage('');
+            setNewQuestionBHint1('');
+            setNewQuestionBHint2('');
+          };
+
+          const deleteQuestionB = (id) => {
+            const updated = questionsB.filter(q => q.id !== id);
+            setQuestionsB(updated);
+            localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
+          };
+
+          // --- RENDER ---
+
+          if (view === View.HOME) {
+            return (
+              <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 relative">
+                <h1 className="text-4xl md:text-6xl font-8bit text-green-400 mb-12 animate-pulse text-center leading-normal">
+                  Retro<br/>Guessing
+                </h1>
+                <button
+                  {...homeLongPress}
+                  onClick={() => setView(View.GAME_SELECT)}
+                  className="font-8bit text-2xl md:text-4xl text-white hover:text-yellow-400 transition-colors border-4 border-white p-6 rounded-none active:bg-white active:text-black select-none z-10"
+                >
+                  Game start
+                </button>
+              </div>
+            );
+          }
+
+          if (view === View.GAME_SELECT) {
+            return (
+              <div className="h-screen w-screen flex flex-col md:flex-row items-center justify-center gap-12 bg-slate-900 p-8">
+                <div 
+                  onClick={() => { setSelectedGame(GameType.A); setView(View.TOPIC_SELECT_A); }}
+                  className="bg-slate-800 p-8 rounded-2xl border-4 border-cyan-500 hover:scale-105 transition-transform cursor-pointer text-center z-10"
+                >
+                  <div className="text-6xl mb-4">💀💀💀</div>
+                  <div className="text-4xl">🙉🎧🗣️🙍‍♀️</div>
+                </div>
+                <div 
+                  onClick={() => { setSelectedGame(GameType.B); setView(View.TOPIC_SELECT_B); }}
+                  className="bg-slate-800 p-8 rounded-2xl border-4 border-purple-500 hover:scale-105 transition-transform cursor-pointer text-center z-10"
+                >
+                  <div className="text-6xl mb-4">👻👻👻</div>
+                  <div className="text-4xl">👀🖼️🤔🙋‍♀️</div>
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.TOPIC_SELECT_A || view === View.TOPIC_SELECT_B) {
+            const isA = view === View.TOPIC_SELECT_A;
+            const topics = isA ? Object.values(TopicA) : Object.values(TopicB);
+            const selected = isA ? selectedTopicA : selectedTopicB;
+
+            return (
+              <div 
+                className="h-screen w-screen flex flex-col items-center justify-center gap-8 bg-slate-900 p-4"
+                {...topicDoubleTap} 
+              >
+                <h2 className="text-3xl font-noto text-white mb-8">
+                  {selected ? 'Double Tap to Confirm' : 'Select a Topic'}
+                </h2>
+                <div className="flex flex-wrap justify-center gap-6 z-10">
+                  {topics.map((topic) => (
+                    <Card
+                      key={topic}
+                      isFlipped={selected === topic}
+                      frontContent={null}
+                      backContent={topic}
+                      onClick={() => isA ? handleTopicSelectA(topic) : handleTopicSelectB(topic)}
+                      className={selected === topic ? 'ring-4 ring-yellow-400 rounded-xl scale-110' : ''}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.PREPARING) {
+            return (
+              <div 
+                className="h-screen w-screen flex items-center justify-center bg-black"
+                {...preparingDoubleTap}
+              >
+                <h1 className="text-5xl font-8bit text-green-500">{preparingText}</h1>
+              </div>
+            );
+          }
+
+          if (view === View.PRACTICE_INTRO) {
+            return <CountdownOverlay onComplete={() => {
+              setView(View.PRACTICE_PLAY);
+              setPracticeTimeLeft(60);
+              startTimer(60, setPracticeTimeLeft, () => {});
+            }} />;
+          }
+
+          if (view === View.PRACTICE_PLAY) {
+            const isTimeUp = practiceTimeLeft === 0;
+
+            return (
+              <div 
+                className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 relative"
+                {...gameControlHandlers} 
+              >
+                <div className="absolute top-4 left-4 text-4xl font-8bit text-red-500 z-10">
+                   {isTimeUp ? '0' : practiceTimeLeft}
+                </div>
+
+                <div className="w-full h-full flex items-center justify-center p-8 z-10">
+                  {isTimeUp ? (
+                     <div className="text-center">
+                        <h1 className="text-6xl font-noto text-red-500 mb-8 animate-bounce">時間終了</h1>
+                        {selectedGame === GameType.B && (
+                          <h2 className="text-4xl font-noto text-white">謎底：範例圖片</h2>
+                        )}
+                     </div>
+                  ) : (
+                    <>
+                      {selectedGame === GameType.A ? (
+                        <div className="text-[12vw] font-noto text-white text-center leading-tight">
+                          台北轉運站
+                        </div>
+                      ) : (
+                        <div className="relative w-full h-full flex items-center justify-center">
+                           <img src="https://picsum.photos/800/600" alt="Practice" className="max-w-full max-h-full object-contain border-4 border-white" />
+                           
+                           {hintStage >= 1 && (
+                             <div className="absolute bottom-10 left-10 bg-black/80 p-4 rounded text-2xl font-noto text-yellow-300">
+                               Hint 1: Place
+                             </div>
+                           )}
+                           {hintStage >= 2 && (
+                             <div className="absolute bottom-10 right-10 bg-black/80 p-4 rounded text-2xl font-noto text-yellow-300">
+                               Hint 2: Travel
+                             </div>
+                           )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                <div className="absolute top-4 right-4 text-gray-500 font-noto text-sm">
+                   Practice Mode
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.OFFICIAL_PRE_START) {
+            return (
+              <div 
+                className="h-screen w-screen flex items-center justify-center bg-slate-900 cursor-pointer"
+                onClick={() => setView(View.OFFICIAL_INTRO)}
+              >
+                <div className="text-center animate-pulse">
+                  <h1 className="text-6xl font-noto text-white mb-4">正式開始</h1>
+                  <p className="text-xl text-gray-400 font-8bit">CLICK TO START</p>
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.OFFICIAL_INTRO) {
+            return <CountdownOverlay onComplete={() => {
+              setView(View.OFFICIAL_PLAY);
+              const duration = selectedGame === GameType.A ? 180 : 300;
+              setGameTimeLeft(duration);
+              setStats(prev => ({ ...prev, startTime: Date.now() }));
+              startTimer(duration, setGameTimeLeft, () => { /* Timer End */ });
+            }} />;
+          }
+
+          if (view === View.OFFICIAL_PLAY) {
+            const isTimeUp = gameTimeLeft === 0;
+            const currentQ = playQueue[currentQuestionIndex];
+
+            return (
+              <div 
+                className="h-screen w-screen bg-slate-900 relative select-none"
+                {...gameControlHandlers} 
+                {...gameLongPress}
+              >
+                <div className={`absolute top-4 left-4 text-4xl font-8bit z-10 ${gameTimeLeft < 10 ? 'text-red-600 animate-pulse' : 'text-green-500'}`}>
+                   {Math.floor(gameTimeLeft / 60)}:{(gameTimeLeft % 60).toString().padStart(2, '0')}
+                </div>
+
+                <div className="w-full h-full flex items-center justify-center p-4 z-10">
+                  {!currentQ ? (
+                    <div className="text-4xl font-noto">No Questions Found</div>
+                  ) : selectedGame === GameType.A ? (
+                     <div className="text-[15vw] font-noto text-white text-center leading-none break-words w-full">
+                       {currentQ.text}
+                     </div>
+                  ) : (
+                     <div className="relative w-full h-full flex items-center justify-center">
+                        <img 
+                          src={currentQ.imageBase64} 
+                          alt="Guess" 
+                          className="max-w-full max-h-full object-contain border-4 border-gray-700" 
+                        />
+                         {hintStage >= 1 && (
+                             <div className="absolute bottom-12 left-12 bg-indigo-900/90 p-6 rounded-xl border-2 border-yellow-400">
+                               <p className="text-yellow-400 font-noto text-3xl">💡 {currentQ.hint1}</p>
+                             </div>
+                           )}
+                           {hintStage >= 2 && (
+                             <div className="absolute bottom-12 right-12 bg-indigo-900/90 p-6 rounded-xl border-2 border-yellow-400">
+                               <p className="text-yellow-400 font-noto text-3xl">💡 {currentQ.hint2}</p>
+                             </div>
+                           )}
+                     </div>
+                  )}
+                </div>
+
+                {isTimeUp && (
+                  <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-40">
+                     <h1 className="text-6xl font-8bit text-red-500 animate-bounce">TIME UP</h1>
+                     <p className="absolute bottom-10 text-white font-noto animate-pulse">Double Tap to Finish</p>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          if (view === View.SCORE) {
+            const totalTimeSeconds = Math.floor((stats.endTime - stats.startTime) / 1000);
+            const displayMinutes = Math.floor(totalTimeSeconds / 60);
+            const displaySeconds = totalTimeSeconds % 60;
+
+            return (
+              <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-900 gap-8">
+                <button onClick={goHome} className="absolute top-8 right-8 p-4 bg-gray-800 rounded-full hover:bg-gray-700 z-10">
+                   <HomeIcon size={32} />
+                </button>
+                
+                <h1 className="text-6xl font-8bit text-yellow-400 mb-8">RESULTS</h1>
+                
+                <div className="bg-slate-800 p-12 rounded-3xl border-4 border-white w-3/4 max-w-2xl z-10">
+                   <div className="flex justify-between items-center mb-6 border-b-2 border-gray-600 pb-4">
+                      <span className="text-3xl font-noto text-gray-400">Total Time</span>
+                      <span className="text-4xl font-8bit text-white">
+                        {displayMinutes}分 {displaySeconds}秒
+                      </span>
+                   </div>
+                   <div className="flex justify-between items-center mb-6 border-b-2 border-gray-600 pb-4">
+                      <span className="text-3xl font-noto text-green-400">Correct</span>
+                      <span className="text-4xl font-8bit text-green-400">{stats.correctCount}</span>
+                   </div>
+                   <div className="flex justify-between items-center">
+                      <span className="text-3xl font-noto text-red-400">Passed</span>
+                      <span className="text-4xl font-8bit text-red-400">{stats.passCount}</span>
+                   </div>
+                </div>
+              </div>
+            );
+          }
+
+          if (view === View.ADMIN) {
+            return (
+              <div className="min-h-screen w-full bg-slate-900 p-8 overflow-y-auto z-10 relative">
+                <div className="flex justify-between items-center mb-8">
+                   <h1 className="text-4xl font-8bit text-blue-400">ADMIN PANEL</h1>
+                   <button onClick={goHome}><XIcon size={40} /></button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Add A */}
+                  <div className="bg-slate-800 p-6 rounded-xl border-2 border-cyan-500">
+                    <h2 className="text-2xl font-noto mb-4 text-cyan-400">Add Question A (Silent)</h2>
+                    <div className="flex gap-2 mb-4">
+                      {Object.values(TopicA).map(t => (
+                        <button 
+                          key={t}
+                          onClick={() => setSelectedTopicA(t)}
+                          className={`px-4 py-2 rounded ${selectedTopicA === t ? 'bg-cyan-600' : 'bg-gray-700'}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      type="text" 
+                      placeholder="Question Text" 
+                      value={newQuestionAText}
+                      onChange={e => setNewQuestionAText(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4 text-xl"
+                    />
+                    <button onClick={addQuestionA} className="w-full bg-cyan-600 p-3 rounded font-bold hover:bg-cyan-500">
+                      ADD QUESTION A
+                    </button>
+                  </div>
+
+                  {/* Add B */}
+                  <div className="bg-slate-800 p-6 rounded-xl border-2 border-purple-500">
+                    <h2 className="text-2xl font-noto mb-4 text-purple-400">Add Question B (Image)</h2>
+                    <div className="flex gap-2 mb-4">
+                      {Object.values(TopicB).map(t => (
+                        <button 
+                          key={t}
+                          onClick={() => setNewQuestionBTopic(t)}
+                          className={`px-4 py-2 rounded ${newQuestionBTopic === t ? 'bg-purple-600' : 'bg-gray-700'}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                    <input 
+                      type="file" 
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="w-full mb-4"
+                    />
+                    {newQuestionBImage && <img src={newQuestionBImage} className="h-20 mb-4 object-contain" />}
+                    <input 
+                      type="text" 
+                      placeholder="Hint 1" 
+                      value={newQuestionBHint1}
+                      onChange={e => setNewQuestionBHint1(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-2"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Hint 2" 
+                      value={newQuestionBHint2}
+                      onChange={e => setNewQuestionBHint2(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4"
+                    />
+                    <button onClick={addQuestionB} className="w-full bg-purple-600 p-3 rounded font-bold hover:bg-purple-500">
+                      ADD QUESTION B
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <h3 className="text-xl mb-4">Current Questions A ({questionsA.length})</h3>
+                  <div className="flex flex-wrap gap-2 mb-8">
+                    {questionsA.map(q => (
+                      <div key={q.id} className="bg-gray-700 px-3 py-2 rounded flex items-center gap-2">
+                        <span className="text-sm">{q.topic}: {q.text}</span>
+                        <button onClick={() => deleteQuestionA(q.id)} className="text-red-400 hover:text-red-300 ml-2">
+                          <TrashIcon size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  <h3 className="text-xl mb-4">Current Questions B ({questionsB.length})</h3>
+                   <div className="flex flex-wrap gap-2">
+                    {questionsB.map(q => (
+                      <div key={q.id} className="bg-gray-700 px-3 py-2 rounded flex items-center gap-2">
+                        <span className="text-sm">{q.topic}: [Image]</span>
+                        <button onClick={() => deleteQuestionB(q.id)} className="text-red-400 hover:text-red-300 ml-2">
+                          <TrashIcon size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            );
+          }
+          
+          return null;
+        };
+
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+<script type="module" src="/index.tsx"></script>
 </body>
 </html>
