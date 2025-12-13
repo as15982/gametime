@@ -65,11 +65,41 @@
         left: 0;
         z-index: 50;
       }
+
+      /* Landscape Warning */
+      #orientation-warning {
+        display: none;
+      }
+
+      @media screen and (orientation: portrait) and (min-width: 600px) {
+        #orientation-warning {
+            display: flex;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0f172a;
+            z-index: 9999;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 20px;
+        }
+      }
     </style>
 </head>
 <body>
     <div id="root"></div>
     <div class="scanlines"></div>
+    
+    <!-- Orientation Warning Layer -->
+    <div id="orientation-warning">
+        <div class="text-6xl mb-4">📱➡️💻</div>
+        <h1 class="text-3xl font-noto font-bold text-yellow-400">請旋轉您的裝置</h1>
+        <p class="text-xl font-noto text-white mt-4">為了最佳體驗，請使用橫式瀏覽</p>
+    </div>
 
     <script type="text/babel" data-presets="react,typescript">
         const { useState, useEffect, useRef, useCallback } = React;
@@ -110,34 +140,79 @@
           MOVIE_CHAR: '電影&角色'
         };
 
-        const STORAGE_KEY_A = 'game_questions_a';
-        const STORAGE_KEY_B = 'game_questions_b';
-        const STORAGE_KEY_PRACTICE_B = 'game_practice_b';
-        const PLACEHOLDER_IMAGE = 'https://picsum.photos/600/600';
+        const STORAGE_KEY_A = 'game_questions_a_v2';
+        const STORAGE_KEY_B = 'game_questions_b_v2';
+        const STORAGE_KEY_PRACTICE_B = 'game_practice_b_v2';
+        const PLACEHOLDER_IMAGE = 'https://picsum.photos/600/600'; // Fallback if user doesn't upload
+
+        // --- DATA INJECTION (USER PROVIDED) ---
 
         const DEFAULT_QUESTIONS_A = [
-          { id: 'a1', topic: TopicA.DIET, text: '珍珠奶茶', timestamp: 1 },
-          { id: 'a2', topic: TopicA.DIET, text: '臭豆腐', timestamp: 2 },
-          { id: 'a3', topic: TopicA.LIFE, text: '捷運', timestamp: 3 },
-          { id: 'a4', topic: TopicA.BRAND, text: 'NIKE', timestamp: 4 },
-        ];
+          // 飲食
+          { id: 'a_d1', topic: TopicA.DIET, text: '珍珠奶茶' },
+          { id: 'a_d2', topic: TopicA.DIET, text: '漢堡' },
+          { id: 'a_d3', topic: TopicA.DIET, text: '小胖鹹水雞', subtext: '(提示:在我們公司附近常吃的店)' },
+          { id: 'a_d4', topic: TopicA.DIET, text: '天婦羅' },
+          { id: 'a_d5', topic: TopicA.DIET, text: '麻辣臭豆腐' },
+          { id: 'a_d6', topic: TopicA.DIET, text: '泡菜鍋' },
+          { id: 'a_d7', topic: TopicA.DIET, text: '鐵板燒' },
+          { id: 'a_d8', topic: TopicA.DIET, text: '霜淇淋' },
+          { id: 'a_d9', topic: TopicA.DIET, text: '剝皮辣椒' },
+          { id: 'a_d10', topic: TopicA.DIET, text: '拔絲地瓜' },
+          // 生活
+          { id: 'a_l1', topic: TopicA.LIFE, text: '蝦皮店到店' },
+          { id: 'a_l2', topic: TopicA.LIFE, text: '豆奶' },
+          { id: 'a_l3', topic: TopicA.LIFE, text: '簡明鴻', subtext: '(阿簡)' },
+          { id: 'a_l4', topic: TopicA.LIFE, text: '6/25', subtext: '(諾諾的生日)' },
+          { id: 'a_l5', topic: TopicA.LIFE, text: 'Samsung buds 3 藍牙耳機' },
+          { id: 'a_l6', topic: TopicA.LIFE, text: '174', subtext: '(家家的身高)' },
+          { id: 'a_l7', topic: TopicA.LIFE, text: 'A7 體育大學站', subtext: '(機捷)' },
+          { id: 'a_l8', topic: TopicA.LIFE, text: '0975603765', subtext: '(蘇菲的電話)' },
+          // 品牌
+          { id: 'a_b1', topic: TopicA.BRAND, text: '星巴克' },
+          { id: 'a_b2', topic: TopicA.BRAND, text: 'NiKe' },
+          { id: 'a_b3', topic: TopicA.BRAND, text: 'CHARLES & KEITH', subtext: '(小CK)' },
+          { id: 'a_b4', topic: TopicA.BRAND, text: 'Dior' },
+          { id: 'a_b5', topic: TopicA.BRAND, text: '愛迪達' },
+          { id: 'a_b6', topic: TopicA.BRAND, text: 'Tesla' },
+          { id: 'a_b7', topic: TopicA.BRAND, text: '無印良品', subtext: '(MUJI)' },
+          { id: 'a_b8', topic: TopicA.BRAND, text: 'converse' },
+          { id: 'a_b9', topic: TopicA.BRAND, text: '家樂福' },
+          { id: 'a_b10', topic: TopicA.BRAND, text: 'IKEA' },
+        ].map((q, i) => ({ ...q, timestamp: i }));
 
         const DEFAULT_QUESTIONS_B = [
-          { 
-            id: 'b1', 
-            topic: TopicB.BRAND, 
-            imageBase64: PLACEHOLDER_IMAGE, 
-            answer: 'NIKE', 
-            hint1: '運動用品', 
-            hint2: '勾勾' 
-          },
+            // 品牌
+            { id: 'b_br1', topic: TopicB.BRAND, answer: '好市多', hint1: '海外品牌', hint2: '量販店', imageBase64: '' },
+            { id: 'b_br2', topic: TopicB.BRAND, answer: '優衣庫(uniqlo)', hint1: '日系', hint2: '許光漢', imageBase64: '' },
+            { id: 'b_br3', topic: TopicB.BRAND, answer: '杜蕾斯', hint1: '生活用品', hint2: '一個人習慣購買頻率不同', imageBase64: '' },
+            { id: 'b_br4', topic: TopicB.BRAND, answer: '愛馬仕', hint1: '國際品牌', hint2: '精品', imageBase64: '' },
+            { id: 'b_br5', topic: TopicB.BRAND, answer: '萬寶龍', hint1: '國際品牌', hint2: 'logo有六芒星', imageBase64: '' },
+            { id: 'b_br6', topic: TopicB.BRAND, answer: '三宅一生', hint1: '日系', hint2: '創辦人過世', imageBase64: '' },
+            { id: 'b_br7', topic: TopicB.BRAND, answer: '牛頭牌', hint1: '台灣', hint2: '媽媽的愛', imageBase64: '' },
+            // 飲食
+            { id: 'b_d1', topic: TopicB.DIET, answer: '五十嵐', hint1: '飲料', hint2: '有族譜', imageBase64: '' },
+            { id: 'b_d2', topic: TopicB.DIET, answer: '五桐號', hint1: '飲料', hint2: '通化夜市有', imageBase64: '' },
+            { id: 'b_d3', topic: TopicB.DIET, answer: '鼎泰豐', hint1: '台灣知名品牌', hint2: '觀光客大排長龍', imageBase64: '' },
+            { id: 'b_d4', topic: TopicB.DIET, answer: '浪味仙', hint1: '零食', hint2: '無法被取代的味道', imageBase64: '' },
+            { id: 'b_d5', topic: TopicB.DIET, answer: '鬍鬚張', hint1: '台灣在地品牌', hint2: '小吃店', imageBase64: '' },
+            { id: 'b_d6', topic: TopicB.DIET, answer: '舒跑', hint1: '國際飲品', hint2: '到處都有', imageBase64: '' },
+            // 電影&角色
+            { id: 'b_m1', topic: TopicB.MOVIE_CHAR, answer: '心靈捕手', hint1: '電影', hint2: '清潔工的故事', imageBase64: '' },
+            { id: 'b_m2', topic: TopicB.MOVIE_CHAR, answer: 'Lalaland', hint1: '電影(猜題可以嘗試用台語單字)', hint2: '畫面跟海報相似', imageBase64: '' },
+            { id: 'b_m3', topic: TopicB.MOVIE_CHAR, answer: '九品芝麻官', hint1: '經典電影', hint2: '華語圈', imageBase64: '' },
+            { id: 'b_m4', topic: TopicB.MOVIE_CHAR, answer: '追殺比爾', hint1: '復仇的故事', hint2: 'Uma Thurman', imageBase64: '' },
+            { id: 'b_m5', topic: TopicB.MOVIE_CHAR, answer: '怪奇物語', hint1: '影集', hint2: '主角名字跟數字有關', imageBase64: '' },
+            { id: 'b_m6', topic: TopicB.MOVIE_CHAR, answer: '皮克敏', hint1: '日系角色', hint2: '有七種顏色', imageBase64: '' },
+            { id: 'b_m7', topic: TopicB.MOVIE_CHAR, answer: '孔劉', hint1: '大叔', hint2: '韓國演員', imageBase64: '' },
+            { id: 'b_m8', topic: TopicB.MOVIE_CHAR, answer: '金城武', hint1: '台灣人', hint2: '知名男神', imageBase64: '' },
         ];
 
         const DEFAULT_PRACTICE_B = {
-            imageBase64: PLACEHOLDER_IMAGE,
-            answer: '範例圖片',
-            hint1: 'Place',
-            hint2: 'Travel'
+            imageBase64: '', // Empty initially
+            answer: '魔戒',
+            hint1: '電影',
+            hint2: '執念'
         };
 
         // --- ICONS (Lucide Wrapper) ---
@@ -155,6 +230,9 @@
         const TrashIcon = (props) => <Icon name="trash-2" {...props} />;
         const EyeIcon = (props) => <Icon name="eye" {...props} />;
         const SaveIcon = (props) => <Icon name="save" {...props} />;
+        const UploadIcon = (props) => <Icon name="upload" {...props} />;
+        const DownloadIcon = (props) => <Icon name="download" {...props} />;
+        const ImagePlusIcon = (props) => <Icon name="image-plus" {...props} />;
 
         // --- HOOKS ---
 
@@ -291,15 +369,21 @@
           const [practiceB, setPracticeB] = useState(DEFAULT_PRACTICE_B);
 
           const [playQueue, setPlayQueue] = useState([]);
+          const lastActionRef = useRef(0); // For Cooldown to prevent double skips
 
           // Admin State
           const [newQuestionAText, setNewQuestionAText] = useState('');
+          const [newQuestionASubtext, setNewQuestionASubtext] = useState('');
+          
+          // Admin B - New Flow State
           const [newQuestionBTopic, setNewQuestionBTopic] = useState(TopicB.BRAND);
-          const [newQuestionBImage, setNewQuestionBImage] = useState('');
           const [newQuestionBAnswer, setNewQuestionBAnswer] = useState('');
           const [newQuestionBHint1, setNewQuestionBHint1] = useState('');
           const [newQuestionBHint2, setNewQuestionBHint2] = useState('');
           
+          // Admin B - Editing/Image Upload State
+          const [editingQuestionBId, setEditingQuestionBId] = useState(null); // Which question is being edited for image
+
           // Admin Practice B State
           const [editPracticeB, setEditPracticeB] = useState(DEFAULT_PRACTICE_B);
 
@@ -311,6 +395,7 @@
             const storedB = localStorage.getItem(STORAGE_KEY_B);
             const storedPracticeB = localStorage.getItem(STORAGE_KEY_PRACTICE_B);
 
+            // Use hardcoded defaults if storage is empty
             setQuestionsA(storedA ? JSON.parse(storedA) : DEFAULT_QUESTIONS_A);
             setQuestionsB(storedB ? JSON.parse(storedB) : DEFAULT_QUESTIONS_B);
             
@@ -368,19 +453,34 @@
           };
 
           const handleNextQuestion = (isCorrect) => {
+            const now = Date.now();
+            // COOLDOWN FIX: Prevent jumping two questions
+            if (now - lastActionRef.current < 500) return;
+            lastActionRef.current = now;
+
             setStats(prev => ({
               ...prev,
               correctCount: isCorrect ? prev.correctCount + 1 : prev.correctCount,
               passCount: !isCorrect ? prev.passCount + 1 : prev.passCount
             }));
 
-            setHintStage(0); 
+            // Reset hints immediately for the next question
+            setHintStage(0);
             
             if (currentQuestionIndex < playQueue.length - 1) {
               setCurrentQuestionIndex(prev => prev + 1);
             } else {
                endGame();
             }
+          };
+
+          const handleHintAdvance = () => {
+              const now = Date.now();
+              // Small debounce for hint tapping
+              if (now - lastActionRef.current < 200) return;
+              lastActionRef.current = now;
+              
+              setHintStage(prev => Math.min(prev + 1, 2));
           };
 
           // --- GESTURES ---
@@ -421,7 +521,7 @@
             },
             onSingleTap: () => {
               if ((view === View.PRACTICE_PLAY || view === View.OFFICIAL_PLAY) && selectedGame === GameType.B) {
-                setHintStage(prev => Math.min(prev + 1, 2));
+                handleHintAdvance();
               }
             }
           });
@@ -451,26 +551,69 @@
             setPlayQueue(queue);
           };
 
-          const handleImageUpload = (e) => {
+          const handleImageUploadForId = (e, id, isPractice = false) => {
             const file = e.target.files?.[0];
             if (file) {
               const reader = new FileReader();
               reader.onloadend = () => {
-                setNewQuestionBImage(reader.result);
+                if (isPractice) {
+                    setEditPracticeB(prev => ({ ...prev, imageBase64: reader.result }));
+                } else {
+                    const updated = questionsB.map(q => 
+                        q.id === id ? { ...q, imageBase64: reader.result } : q
+                    );
+                    setQuestionsB(updated);
+                    localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
+                }
               };
               reader.readAsDataURL(file);
             }
           };
-          
-          const handlePracticeImageUpload = (e) => {
+
+          // --- DATA EXPORT / IMPORT ---
+          const exportData = () => {
+             const data = {
+                 questionsA,
+                 questionsB,
+                 practiceB: editPracticeB,
+                 timestamp: Date.now()
+             };
+             const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+             const url = URL.createObjectURL(blob);
+             const a = document.createElement('a');
+             a.href = url;
+             a.download = 'retro_guessing_game_data.json';
+             a.click();
+             URL.revokeObjectURL(url);
+          };
+
+          const importData = (e) => {
              const file = e.target.files?.[0];
-             if (file) {
-               const reader = new FileReader();
-               reader.onloadend = () => {
-                 setEditPracticeB(prev => ({ ...prev, imageBase64: reader.result }));
-               };
-               reader.readAsDataURL(file);
-             }
+             if(!file) return;
+             
+             const reader = new FileReader();
+             reader.onload = (event) => {
+                 try {
+                     const data = JSON.parse(event.target.result);
+                     if(data.questionsA) {
+                         setQuestionsA(data.questionsA);
+                         localStorage.setItem(STORAGE_KEY_A, JSON.stringify(data.questionsA));
+                     }
+                     if(data.questionsB) {
+                         setQuestionsB(data.questionsB);
+                         localStorage.setItem(STORAGE_KEY_B, JSON.stringify(data.questionsB));
+                     }
+                     if(data.practiceB) {
+                         setEditPracticeB(data.practiceB);
+                         setPracticeB(data.practiceB);
+                         localStorage.setItem(STORAGE_KEY_PRACTICE_B, JSON.stringify(data.practiceB));
+                     }
+                     alert("匯入成功！資料已更新 (Import Successful!)");
+                 } catch (err) {
+                     alert("匯入失敗：檔案格式錯誤 (Import Failed)");
+                 }
+             };
+             reader.readAsText(file);
           };
 
           const addQuestionA = () => {
@@ -479,12 +622,14 @@
               id: Date.now().toString(),
               topic: selectedTopicA,
               text: newQuestionAText,
+              subtext: newQuestionASubtext,
               timestamp: Date.now()
             };
             const updated = [...questionsA, newQ];
             setQuestionsA(updated);
             localStorage.setItem(STORAGE_KEY_A, JSON.stringify(updated));
             setNewQuestionAText('');
+            setNewQuestionASubtext('');
           };
 
           const deleteQuestionA = (id) => {
@@ -493,12 +638,13 @@
             localStorage.setItem(STORAGE_KEY_A, JSON.stringify(updated));
           };
 
-          const addQuestionB = () => {
-            if (!newQuestionBImage || !newQuestionBAnswer || !newQuestionBHint1 || !newQuestionBHint2) return;
+          // NEW Workflow: Add Text First, Image Later
+          const addQuestionBText = () => {
+            if (!newQuestionBAnswer || !newQuestionBHint1 || !newQuestionBHint2) return;
             const newQ = {
               id: Date.now().toString(),
               topic: newQuestionBTopic,
-              imageBase64: newQuestionBImage,
+              imageBase64: '', // Empty initially
               answer: newQuestionBAnswer,
               hint1: newQuestionBHint1,
               hint2: newQuestionBHint2
@@ -506,7 +652,7 @@
             const updated = [...questionsB, newQ];
             setQuestionsB(updated);
             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
-            setNewQuestionBImage('');
+            // Reset fields
             setNewQuestionBAnswer('');
             setNewQuestionBHint1('');
             setNewQuestionBHint2('');
@@ -516,20 +662,13 @@
             const updated = questionsB.filter(q => q.id !== id);
             setQuestionsB(updated);
             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(updated));
+            if(editingQuestionBId === id) setEditingQuestionBId(null);
           };
           
           const savePracticeB = () => {
              setPracticeB(editPracticeB);
              localStorage.setItem(STORAGE_KEY_PRACTICE_B, JSON.stringify(editPracticeB));
              alert('Practice Question Saved!');
-          };
-
-          const saveAllData = () => {
-             localStorage.setItem(STORAGE_KEY_A, JSON.stringify(questionsA));
-             localStorage.setItem(STORAGE_KEY_B, JSON.stringify(questionsB));
-             localStorage.setItem(STORAGE_KEY_PRACTICE_B, JSON.stringify(editPracticeB));
-             setPracticeB(editPracticeB);
-             alert('All Data Saved Successfully!');
           };
 
           // --- RENDER ---
@@ -617,6 +756,7 @@
           if (view === View.PRACTICE_INTRO) {
             return <CountdownOverlay onComplete={() => {
               setView(View.PRACTICE_PLAY);
+              setHintStage(0); // Reset hints for practice
               setPracticeTimeLeft(60);
               startTimer(60, setPracticeTimeLeft, () => {});
             }} />;
@@ -650,7 +790,11 @@
                         </div>
                       ) : (
                         <div className="relative w-full h-full flex items-center justify-center">
-                           <img src={practiceB.imageBase64} alt="Practice" className="max-w-full max-h-full object-contain border-4 border-white" />
+                           {practiceB.imageBase64 ? (
+                               <img src={practiceB.imageBase64} alt="Practice" className="max-w-full max-h-full object-contain border-4 border-white" />
+                           ) : (
+                               <div className="text-4xl text-gray-500">No Image Uploaded</div>
+                           )}
                            
                            {hintStage >= 1 && (
                              <div className="absolute bottom-10 left-10 bg-black/80 p-4 rounded text-2xl font-noto text-yellow-300">
@@ -692,6 +836,8 @@
 
           if (view === View.OFFICIAL_INTRO) {
             return <CountdownOverlay onComplete={() => {
+              // Ensure hints are reset BEFORE view switch
+              setHintStage(0);
               setView(View.OFFICIAL_PLAY);
               const duration = selectedGame === GameType.A ? 180 : 300;
               setGameTimeLeft(duration);
@@ -718,16 +864,28 @@
                   {!currentQ ? (
                     <div className="text-4xl font-noto">No Questions Found</div>
                   ) : selectedGame === GameType.A ? (
-                     <div className="text-[15vw] font-noto text-white text-center leading-none break-words w-full">
-                       {currentQ.text}
+                     <div className="flex flex-col items-center">
+                        <div className="text-[15vw] font-noto text-white text-center leading-none break-words w-full">
+                           {currentQ.text}
+                        </div>
+                        {currentQ.subtext && (
+                            <div className="text-[4vw] font-noto text-gray-400 mt-4">{currentQ.subtext}</div>
+                        )}
                      </div>
                   ) : (
                      <div className="relative w-full h-full flex items-center justify-center">
-                        <img 
-                          src={currentQ.imageBase64} 
-                          alt="Guess" 
-                          className="max-w-full max-h-full object-contain border-4 border-gray-700" 
-                        />
+                        {currentQ.imageBase64 ? (
+                           <img 
+                             src={currentQ.imageBase64} 
+                             alt="Guess" 
+                             className="max-w-full max-h-full object-contain border-4 border-gray-700" 
+                           />
+                        ) : (
+                           <div className="text-4xl text-gray-500 font-noto">
+                               {currentQ.topic} <br/> (No Image - Ask Admin to Upload)
+                           </div>
+                        )}
+                        
                          {hintStage >= 1 && (
                              <div className="absolute bottom-12 left-12 bg-indigo-900/90 p-6 rounded-xl border-2 border-yellow-400">
                                <p className="text-yellow-400 font-noto text-3xl">💡 {currentQ.hint1}</p>
@@ -800,10 +958,17 @@
                   {playQueue.map((q, idx) => (
                     <div key={idx} className="bg-slate-800 p-4 rounded-xl border-2 border-gray-600 flex flex-col items-center">
                        {selectedGame === GameType.A ? (
-                         <div className="text-2xl font-noto text-white py-8">{q.text}</div>
+                         <div className="text-center py-4">
+                             <div className="text-2xl font-noto text-white mb-2">{q.text}</div>
+                             <div className="text-sm font-noto text-gray-400">{q.subtext}</div>
+                         </div>
                        ) : (
                          <>
-                           <img src={q.imageBase64} className="h-48 object-contain mb-4 rounded border border-gray-500" />
+                           {q.imageBase64 ? (
+                               <img src={q.imageBase64} className="h-48 object-contain mb-4 rounded border border-gray-500" />
+                           ) : (
+                               <div className="h-48 w-full flex items-center justify-center bg-gray-700 text-gray-400 mb-4 rounded">No Image</div>
+                           )}
                            <div className="w-full bg-slate-900 p-3 rounded text-center">
                              <p className="text-green-400 font-noto text-xl font-bold">{q.answer || 'No Answer Set'}</p>
                            </div>
@@ -826,50 +991,62 @@
             return (
               <div className="min-h-screen w-full bg-slate-900 p-8 overflow-y-auto z-10 relative">
                 <TopRightHomeButton onClick={goHome} />
-                <div className="flex justify-between items-center mb-8">
+                <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
                    <h1 className="text-4xl font-8bit text-blue-400">ADMIN PANEL</h1>
-                   <button 
-                     onClick={saveAllData} 
-                     className="bg-green-600 hover:bg-green-500 text-white px-6 py-2 rounded font-bold flex items-center gap-2"
-                   >
-                     <SaveIcon size={20} /> SAVE ALL DATA
-                   </button>
+                   <div className="flex gap-4">
+                       <label className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded font-bold flex items-center gap-2 cursor-pointer">
+                           <UploadIcon size={20} /> IMPORT
+                           <input type="file" onChange={importData} accept=".json" className="hidden" />
+                       </label>
+                       <button 
+                         onClick={exportData} 
+                         className="bg-green-600 hover:bg-green-500 text-white px-4 py-2 rounded font-bold flex items-center gap-2"
+                       >
+                         <DownloadIcon size={20} /> EXPORT
+                       </button>
+                   </div>
                 </div>
 
                 {/* Edit Practice B Section */}
                 <div className="bg-slate-800 p-6 rounded-xl border-2 border-green-500 mb-8">
-                    <h2 className="text-2xl font-noto mb-4 text-green-400">Edit Practice Question B (Image)</h2>
-                     <input 
-                        type="file" 
-                        accept="image/*"
-                        onChange={handlePracticeImageUpload}
-                        className="w-full mb-4"
-                    />
-                    {editPracticeB.imageBase64 && <img src={editPracticeB.imageBase64} className="h-40 mb-4 object-contain border border-gray-600 rounded" />}
-                     <input 
-                        type="text" 
-                        placeholder="Answer (解答)" 
-                        value={editPracticeB.answer}
-                        onChange={e => setEditPracticeB({...editPracticeB, answer: e.target.value})}
-                        className="w-full p-3 bg-slate-900 border border-yellow-600 rounded mb-2 text-yellow-300"
-                    />
-                    <input 
-                        type="text" 
-                        placeholder="Hint 1" 
-                        value={editPracticeB.hint1}
-                        onChange={e => setEditPracticeB({...editPracticeB, hint1: e.target.value})}
-                        className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-2"
-                    />
-                    <input 
-                        type="text" 
-                        placeholder="Hint 2" 
-                        value={editPracticeB.hint2}
-                        onChange={e => setEditPracticeB({...editPracticeB, hint2: e.target.value})}
-                        className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4"
-                    />
-                    <button onClick={savePracticeB} className="w-full bg-green-600 p-3 rounded font-bold hover:bg-green-500">
-                        SAVE PRACTICE QUESTION
-                    </button>
+                    <h2 className="text-2xl font-noto mb-4 text-green-400">Edit Practice Question B</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div>
+                             <input 
+                                type="file" 
+                                accept="image/*"
+                                onChange={(e) => handleImageUploadForId(e, null, true)}
+                                className="w-full mb-4 text-gray-400"
+                            />
+                            {editPracticeB.imageBase64 && <img src={editPracticeB.imageBase64} className="h-40 mb-4 object-contain border border-gray-600 rounded" />}
+                        </div>
+                        <div>
+                             <input 
+                                type="text" 
+                                placeholder="Answer (解答)" 
+                                value={editPracticeB.answer}
+                                onChange={e => setEditPracticeB({...editPracticeB, answer: e.target.value})}
+                                className="w-full p-3 bg-slate-900 border border-yellow-600 rounded mb-2 text-yellow-300"
+                            />
+                            <input 
+                                type="text" 
+                                placeholder="Hint 1" 
+                                value={editPracticeB.hint1}
+                                onChange={e => setEditPracticeB({...editPracticeB, hint1: e.target.value})}
+                                className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-2"
+                            />
+                            <input 
+                                type="text" 
+                                placeholder="Hint 2" 
+                                value={editPracticeB.hint2}
+                                onChange={e => setEditPracticeB({...editPracticeB, hint2: e.target.value})}
+                                className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4"
+                            />
+                            <button onClick={savePracticeB} className="w-full bg-green-600 p-3 rounded font-bold hover:bg-green-500">
+                                SAVE PRACTICE QUESTION
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
@@ -889,10 +1066,17 @@
                     </div>
                     <input 
                       type="text" 
-                      placeholder="Question Text" 
+                      placeholder="Question Text (e.g. 珍珠奶茶)" 
                       value={newQuestionAText}
                       onChange={e => setNewQuestionAText(e.target.value)}
-                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4 text-xl"
+                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-2 text-xl"
+                    />
+                    <input 
+                      type="text" 
+                      placeholder="Subtext (e.g. 提示:很好喝)" 
+                      value={newQuestionASubtext}
+                      onChange={e => setNewQuestionASubtext(e.target.value)}
+                      className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4 text-sm text-gray-300"
                     />
                     <button onClick={addQuestionA} className="w-full bg-cyan-600 p-3 rounded font-bold hover:bg-cyan-500">
                       ADD QUESTION A
@@ -901,8 +1085,8 @@
 
                   {/* Add B */}
                   <div className="bg-slate-800 p-6 rounded-xl border-2 border-purple-500">
-                    <h2 className="text-2xl font-noto mb-4 text-purple-400">Add Question B (Image)</h2>
-                    <div className="flex gap-2 mb-4">
+                    <h2 className="text-2xl font-noto mb-4 text-purple-400">Add Question B (Data First)</h2>
+                    <div className="flex gap-2 mb-4 flex-wrap">
                       {Object.values(TopicB).map(t => (
                         <button 
                           key={t}
@@ -913,13 +1097,6 @@
                         </button>
                       ))}
                     </div>
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="w-full mb-4"
-                    />
-                    {newQuestionBImage && <img src={newQuestionBImage} className="h-20 mb-4 object-contain" />}
                     
                     <input 
                       type="text" 
@@ -943,18 +1120,19 @@
                       onChange={e => setNewQuestionBHint2(e.target.value)}
                       className="w-full p-3 bg-slate-900 border border-gray-600 rounded mb-4"
                     />
-                    <button onClick={addQuestionB} className="w-full bg-purple-600 p-3 rounded font-bold hover:bg-purple-500">
-                      ADD QUESTION B
+                    <button onClick={addQuestionBText} className="w-full bg-purple-600 p-3 rounded font-bold hover:bg-purple-500 mb-4">
+                      ADD DATA (Step 1)
                     </button>
+                    <p className="text-sm text-gray-400 text-center">Step 2: Find the question in the list below and click to upload image.</p>
                   </div>
                 </div>
 
                 <div className="mt-8">
-                  <h3 className="text-xl mb-4">Current Questions A ({questionsA.length})</h3>
-                  <div className="flex flex-wrap gap-2 mb-8">
+                  <h3 className="text-xl mb-4 text-cyan-400">Questions A List ({questionsA.length})</h3>
+                  <div className="flex flex-wrap gap-2 mb-8 max-h-60 overflow-y-auto">
                     {questionsA.map(q => (
                       <div key={q.id} className="bg-gray-700 px-3 py-2 rounded flex items-center gap-2">
-                        <span className="text-sm">{q.topic}: {q.text}</span>
+                        <span className="text-sm">[{q.topic}] {q.text} <span className="text-gray-400 text-xs">{q.subtext}</span></span>
                         <button onClick={() => deleteQuestionA(q.id)} className="text-red-400 hover:text-red-300 ml-2">
                           <TrashIcon size={16} />
                         </button>
@@ -962,14 +1140,38 @@
                     ))}
                   </div>
                   
-                  <h3 className="text-xl mb-4">Current Questions B ({questionsB.length})</h3>
-                   <div className="flex flex-wrap gap-2">
+                  <h3 className="text-xl mb-4 text-purple-400">Questions B List ({questionsB.length})</h3>
+                  <p className="text-sm text-gray-400 mb-2">Click on a question to upload/change its image.</p>
+                   <div className="flex flex-wrap gap-4">
                     {questionsB.map(q => (
-                      <div key={q.id} className="bg-gray-700 px-3 py-2 rounded flex items-center gap-2">
-                        <span className="text-sm">{q.topic}: [Image] (Ans: {q.answer || 'N/A'})</span>
-                        <button onClick={() => deleteQuestionB(q.id)} className="text-red-400 hover:text-red-300 ml-2">
-                          <TrashIcon size={16} />
-                        </button>
+                      <div 
+                          key={q.id} 
+                          className={`relative p-3 rounded border-2 cursor-pointer transition-all ${q.imageBase64 ? 'border-gray-600 bg-gray-800' : 'border-red-500 bg-red-900/20'}`}
+                          onClick={() => setEditingQuestionBId(editingQuestionBId === q.id ? null : q.id)}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                            <span className="text-xs font-bold px-2 py-1 bg-gray-700 rounded">{q.topic}</span>
+                            <button onClick={(e) => { e.stopPropagation(); deleteQuestionB(q.id); }} className="text-red-400 hover:text-red-300">
+                                <TrashIcon size={16} />
+                            </button>
+                        </div>
+                        <div className="text-lg font-bold text-green-400 mb-1">{q.answer}</div>
+                        <div className="text-xs text-gray-400">1: {q.hint1}</div>
+                        <div className="text-xs text-gray-400">2: {q.hint2}</div>
+                        
+                        {/* Status Indicator */}
+                        <div className="mt-2 flex items-center gap-1 text-xs">
+                            {q.imageBase64 ? <span className="text-green-500">Image OK</span> : <span className="text-red-500 animate-pulse">Missing Image</span>}
+                        </div>
+
+                        {/* Upload Overlay */}
+                        {editingQuestionBId === q.id && (
+                            <div className="absolute inset-0 bg-slate-900/95 flex flex-col items-center justify-center p-2 rounded z-10" onClick={(e) => e.stopPropagation()}>
+                                <p className="text-xs mb-2">Upload Image</p>
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUploadForId(e, q.id)} className="text-xs w-full text-center" />
+                                <button onClick={() => setEditingQuestionBId(null)} className="mt-2 text-xs bg-gray-600 px-2 py-1 rounded">Close</button>
+                            </div>
+                        )}
                       </div>
                     ))}
                   </div>
